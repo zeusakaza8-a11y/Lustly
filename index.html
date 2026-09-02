@@ -3,64 +3,131 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mon Site Vidéos & Photos</title>
+  <title>lustly-only</title>
   
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
   <style>
-    /* Colle tout ton code CSS de JSFiddle ici */
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background-color: #121212;
       color: #fff;
       margin: 0;
       padding: 20px;
     }
+
+    /* En-tête stylisé */
+    .site-header {
+      text-align: center;
+      padding: 20px 0;
+      margin-bottom: 25px;
+      border-bottom: 2px solid #2a2a2a;
+    }
+
+    .site-title {
+      font-size: 2.8rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin: 0;
+      background: linear-gradient(135deg, #3b82f6, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+    }
+
     .search-container input, .admin-panel input, .admin-panel select {
       width: 100%;
-      padding: 10px;
-      margin-bottom: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
       border-radius: 8px;
       border: 1px solid #333;
       background: #222;
       color: #fff;
       box-sizing: border-box;
     }
+
     .admin-panel {
       background: #1e1e1e;
-      padding: 15px;
+      padding: 20px;
       border-radius: 12px;
-      margin-bottom: 20px;
+      margin-bottom: 25px;
+      border: 1px solid #2a2a2a;
     }
-    button {
+
+    .btn-submit {
       background: #3b82f6;
       color: white;
       border: none;
-      padding: 10px 15px;
+      padding: 12px;
       border-radius: 8px;
       width: 100%;
       font-weight: bold;
+      cursor: pointer;
+      font-size: 1rem;
     }
+
+    .delete-btn {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-top: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+    }
+
     .photo-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
       gap: 15px;
     }
+
+    .photo-card {
+      background: #1e1e1e;
+      padding: 10px;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
     .photo-card img {
       width: 100%;
       border-radius: 8px;
+      object-fit: cover;
     }
+
     .video-card {
       background: #1e1e1e;
       padding: 15px;
       border-radius: 12px;
       margin-bottom: 20px;
+      border: 1px solid #2a2a2a;
+    }
+
+    .timer-badge {
+      background: #3b82f6;
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-top: 8px;
+      font-weight: bold;
+      font-size: 0.9em;
     }
   </style>
 </head>
 <body>
+
+  <!-- Titre du site -->
+  <header class="site-header">
+    <h1 class="site-title">lustly-only</h1>
+  </header>
 
   <!-- Barre de recherche -->
   <div class="search-container">
@@ -93,7 +160,7 @@
       <input type="time" id="contentTime">
     </div>
 
-    <button id="addBtn">Publier sur le site</button>
+    <button id="addBtn" class="btn-submit">Publier sur le site</button>
   </div>
 
   <!-- Zone Vidéos -->
@@ -104,7 +171,6 @@
   <div class="photo-grid"></div>
 
   <script>
-    // Configuration Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyD9lr-s-GjjJJOYwucEdX12RvOi0sMuNHY",
       authDomain: "lustly-80821.firebaseapp.com",
@@ -135,7 +201,7 @@
       });
     }
 
-    // Gestion de l'affichage des champs
+    // Masquer / afficher selon le type
     const contentType = document.getElementById('contentType');
     const scheduleGroup = document.getElementById('scheduleGroup');
     const videoUrlGroup = document.getElementById('videoUrlGroup');
@@ -148,7 +214,7 @@
       });
     }
 
-    // Sauvegarde Firebase
+    // Ajouter un contenu
     const addBtn = document.getElementById('addBtn');
     if (addBtn) {
       addBtn.addEventListener('click', () => {
@@ -178,7 +244,50 @@
       });
     }
 
-    // Affichage en direct
+    // Supprimer un contenu
+    function deleteContent(id) {
+      if (confirm("Veux-tu vraiment supprimer ce contenu ?")) {
+        db.collection("contents").doc(id).delete()
+          .then(() => alert("Contenu supprimé !"))
+          .catch((err) => alert("Erreur de suppression : " + err));
+      }
+    }
+
+    // Compte à rebours
+    function startCountdowns() {
+      document.querySelectorAll('.timer-badge').forEach(timerElement => {
+        const targetTimeStr = timerElement.getAttribute('data-time');
+        if (!targetTimeStr) return;
+
+        const [targetHours, targetMinutes] = targetTimeStr.split(':').map(Number);
+        
+        function update() {
+          const now = new Date();
+          const target = new Date();
+          target.setHours(targetHours, targetMinutes, 0, 0);
+
+          if (now > target) {
+            target.setDate(target.getDate() + 1);
+          }
+
+          const diff = target - now;
+          const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+          const minutes = Math.floor((diff / (1000 * 60)) % 60);
+          const seconds = Math.floor((diff / 1000) % 60);
+
+          const h = hours < 10 ? "0" + hours : hours;
+          const m = minutes < 10 ? "0" + minutes : minutes;
+          const s = seconds < 10 ? "0" + seconds : seconds;
+
+          timerElement.textContent = `Disponible dans : ${h}h ${m}m ${s}s`;
+        }
+
+        update();
+        setInterval(update, 1000);
+      });
+    }
+
+    // Affichage en direct depuis Firebase
     db.collection("contents").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
       const photoGrid = document.querySelector('.photo-grid');
       const videoContainer = document.getElementById('videoContainer');
@@ -188,6 +297,7 @@
 
       snapshot.forEach((doc) => {
         const data = doc.data();
+        const docId = doc.id;
 
         if (data.type === 'video' && videoContainer) {
           const videoCard = document.createElement('div');
@@ -201,11 +311,17 @@
                  <img src="${data.imgUrl}" alt="${data.title}" style="width:100%; border-radius:12px;">
                </div>`;
 
+          const timerHtml = data.time 
+            ? `<div class="timer-badge" data-time="${data.time}">Calcul du compte à rebours...</div>` 
+            : '';
+
           videoCard.innerHTML = `
             ${videoElement}
             <div class="info">
               <h3>${data.title}</h3>
               <p>${data.videoUrl ? 'Prêt à regarder !' : 'Sortie prévue à ' + (data.time || '16h00')}</p>
+              ${timerHtml}
+              <button class="delete-btn" onclick="deleteContent('${docId}')">Supprimer la vidéo</button>
             </div>
           `;
           videoContainer.appendChild(videoCard);
@@ -217,10 +333,13 @@
           photoCard.innerHTML = `
             <img src="${data.imgUrl}" alt="${data.title}">
             <p>${data.title}</p>
+            <button class="delete-btn" onclick="deleteContent('${docId}')">Supprimer</button>
           `;
           photoGrid.appendChild(photoCard);
         }
       });
+
+      startCountdowns();
     });
   </script>
 </body>
