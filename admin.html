@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administration - lustly-only</title>
+  
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #121212;
+      color: #fff;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .admin-panel {
+      background: #1e1e1e;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 25px;
+      border: 1px solid #2a2a2a;
+    }
+
+    .admin-panel input, .admin-panel select {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #222;
+      color: #fff;
+      box-sizing: border-box;
+    }
+
+    .btn-submit {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      width: 100%;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .delete-btn {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-top: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+    }
+
+    .progress-bar {
+      width: 100%;
+      background-color: #333;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      display: none;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 10px;
+      background-color: #3b82f6;
+      border-radius: 8px;
+      transition: width 0.2s;
+    }
+
+    .content-item {
+      background: #1e1e1e;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Espace d'Administration Privé</h1>
+
+  <div class="admin-panel">
+    <h2>Ajouter un nouveau contenu</h2>
+    
+    <label>Type de contenu :</label>
+    <select id="contentType">
+      <option value="video">Vidéo</option>
+      <option value="photo">Photo</option>
+    </select>
+
+    <label>Titre :</label>
+    <input type="text" id="contentTitle" placeholder="Ex: Mon nouveau vlog">
+
+    <label>Choisir la photo (Cover ou Photo principale) :</label>
+    <input type="file" id="contentImageFile" accept="image/*">
+
+    <div id="videoUrlGroup">
+      <label>Choisir le fichier vidéo (MP4, MOV...) :</label>
+      <input type="file" id="contentVideoFile" accept="video/*">
+    </div>
+
+    <div id="scheduleGroup">
+      <label>Heure de publication (ex: 16:00) :</label>
+      <input type="time" id="contentTime">
+    </div>
+
+    <div class="progress-bar" id="progressBar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <button id="addBtn" class="btn-submit">Importer et Publier</button>
+  </div>
+
+  <h2>Gestion des contenus publiés</h2>
+  <div id="adminContentList"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyD9lr-s-GjjJJOYwucEdX12RvOi0sMuNHY",
+      authDomain: "lustly-80821.firebaseapp.com",
+      projectId: "lustly-80821",
+      storageBucket: "lustly-80821.firebasestorage.app",
+      messagingSenderId: "785746949485",
+      appId: "1:785746949485:web:86eed55e00fdbc9a715664"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    const contentType = document.getElementById('contentType');
+    const scheduleGroup = document.getElementById('scheduleGroup');
+    const videoUrlGroup = document.getElementById('videoUrlGroup');
+
+    contentType.addEventListener('change', () => {
+      const isPhoto = contentType.value === 'photo';
+      scheduleGroup.style.display = isPhoto ? 'none' : 'block';
+      videoUrlGroup.style.display = isPhoto ? 'none' : 'block';
+    });
+
+    async function uploadFile(file, path) {
+      if (!file) return null;
+      const storageRef = storage.ref(`${path}/${Date.now()}_${file.name}`);
+      const uploadTask = storageRef.put(file);
+
+      return new Promise((resolve, reject) => {
+        uploadTask.on('state_changed', 
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            document.getElementById('progressBar').style.display = 'block';
+            document.getElementById('progressFill').style.width = progress + '%';
+          }, 
+          (error) => reject(error), 
+          async () => {
+            const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
+            resolve(downloadURL);
+          }
+        );
+      });
+    }
+
+    const addBtn = document.getElementById('addBtn');
+    addBtn.addEventListener('click', async () => {
+      const type = contentType.value;
+      const title = document.getElementById('contentTitle').value || 'Sans titre';
+      const time = document.getElementById('contentTime').value;
+      
+      const imageFile = document.getElementById('contentImageFile').files[0];
+      const videoFile = document.getElementById('contentVideoFile').files[0];
+
+      if (!imageFile && type === 'photo') {
+        alert("Veuillez sélectionner une photo.");
+        return;
+      }
+
+      addBtn.disabled = true;
+      addBtn.textContent = "Téléversement en cours...";
+
+      try {
+        let imgUrl = await uploadFile(imageFile, 'images');
+        let videoUrl = null;
+
+        if (type === 'video' && videoFile) {
+          videoUrl = await uploadFile(videoFile, 'videos');
+        }
+
+        await db.collection("contents").add({
+          type: type,
+          title: title,
+          imgUrl: imgUrl || 'https://picsum.photos/800/450',
+          videoUrl: videoUrl || null,
+          time: time || null,
+          createdAt: new Date()
+        });
+
+        alert("Contenu téléversé avec succès !");
+        document.getElementById('contentTitle').value = '';
+        document.getElementById('contentImageFile').value = '';
+        document.getElementById('contentVideoFile').value = '';
+        document.getElementById('progressBar').style.display = 'none';
+        document.getElementById('progressFill').style.width = '0%';
+      } catch (error) {
+        console.error(error);
+        alert("Erreur lors du téléversement.");
+      } finally {
+        addBtn.disabled = false;
+        addBtn.textContent = "Importer et Publier";
+      }
+    });
+
+    function deleteContent(id) {
+      if (confirm("Veux-tu vraiment supprimer ce contenu ?")) {
+        db.collection("contents").doc(id).delete()
+          .then(() => alert("Contenu supprimé !"))
+          .catch((err) => alert("Erreur de suppression : " + err));
+      }
+    }
+
+    db.collection("contents").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
+      const listContainer = document.getElementById('adminContentList');
+      listContainer.innerHTML = '';
+
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const docId = doc.id;
+
+        const item = document.createElement('div');
+        item.className = 'content-item';
+        item.innerHTML = `
+          <div>
+            <strong>[${data.type.toUpperCase()}]</strong> ${data.title}
+          </div>
+          <button class="delete-btn" style="width: auto;" onclick="deleteContent('${docId}')">Supprimer</button>
+        `;
+        listContainer.appendChild(item);
+      });
+    });
+  </script>
+</body>
+</html>
