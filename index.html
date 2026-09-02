@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mon Site Vidéos & Photos</title>
+  
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+  <style>
+    /* Colle tout ton code CSS de JSFiddle ici */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #121212;
+      color: #fff;
+      margin: 0;
+      padding: 20px;
+    }
+    .search-container input, .admin-panel input, .admin-panel select {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #222;
+      color: #fff;
+      box-sizing: border-box;
+    }
+    .admin-panel {
+      background: #1e1e1e;
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      width: 100%;
+      font-weight: bold;
+    }
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 15px;
+    }
+    .photo-card img {
+      width: 100%;
+      border-radius: 8px;
+    }
+    .video-card {
+      background: #1e1e1e;
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Barre de recherche -->
+  <div class="search-container">
+    <input type="text" id="searchInput" placeholder="Rechercher une vidéo ou photo...">
+  </div>
+
+  <!-- Formulaire Admin -->
+  <div class="admin-panel">
+    <h2>Ajouter du contenu</h2>
+    
+    <label>Type de contenu :</label>
+    <select id="contentType">
+      <option value="video">Vidéo</option>
+      <option value="photo">Photo</option>
+    </select>
+
+    <label>Titre :</label>
+    <input type="text" id="contentTitle" placeholder="Ex: Mon nouveau vlog">
+
+    <label>Lien de l'image (Cover) :</label>
+    <input type="text" id="contentImage" placeholder="https://picsum.photos/800/450">
+
+    <div id="videoUrlGroup">
+      <label>Lien de la vidéo (URL MP4) :</label>
+      <input type="text" id="contentVideoUrl" placeholder="https://www.w3schools.com/html/mov_bbb.mp4">
+    </div>
+
+    <div id="scheduleGroup">
+      <label>Heure de publication (ex: 16:00) :</label>
+      <input type="time" id="contentTime">
+    </div>
+
+    <button id="addBtn">Publier sur le site</button>
+  </div>
+
+  <!-- Zone Vidéos -->
+  <div id="videoContainer"></div>
+
+  <!-- Zone Galerie Photos -->
+  <h2 class="section-title">Galerie Photos</h2>
+  <div class="photo-grid"></div>
+
+  <script>
+    // Configuration Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyD9lr-s-GjjJJOYwucEdX12RvOi0sMuNHY",
+      authDomain: "lustly-80821.firebaseapp.com",
+      projectId: "lustly-80821",
+      storageBucket: "lustly-80821.firebasestorage.app",
+      messagingSenderId: "785746949485",
+      appId: "1:785746949485:web:86eed55e00fdbc9a715664"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Recherche
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', function() {
+        const filter = searchInput.value.toLowerCase();
+        
+        document.querySelectorAll('.video-card').forEach(card => {
+          const title = card.querySelector('h3').textContent.toLowerCase();
+          card.style.display = title.includes(filter) ? "" : "none";
+        });
+
+        document.querySelectorAll('.photo-card').forEach(card => {
+          const text = card.querySelector('p').textContent.toLowerCase();
+          card.style.display = text.includes(filter) ? "" : "none";
+        });
+      });
+    }
+
+    // Gestion de l'affichage des champs
+    const contentType = document.getElementById('contentType');
+    const scheduleGroup = document.getElementById('scheduleGroup');
+    const videoUrlGroup = document.getElementById('videoUrlGroup');
+
+    if (contentType) {
+      contentType.addEventListener('change', () => {
+        const isPhoto = contentType.value === 'photo';
+        if (scheduleGroup) scheduleGroup.style.display = isPhoto ? 'none' : 'block';
+        if (videoUrlGroup) videoUrlGroup.style.display = isPhoto ? 'none' : 'block';
+      });
+    }
+
+    // Sauvegarde Firebase
+    const addBtn = document.getElementById('addBtn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        const type = contentType.value;
+        const title = document.getElementById('contentTitle').value || 'Sans titre';
+        const imgUrl = document.getElementById('contentImage').value || 'https://picsum.photos/800/450';
+        const videoUrl = document.getElementById('contentVideoUrl').value;
+        const time = document.getElementById('contentTime').value;
+
+        db.collection("contents").add({
+          type: type,
+          title: title,
+          imgUrl: imgUrl,
+          videoUrl: videoUrl || null,
+          time: time || null,
+          createdAt: new Date()
+        })
+        .then(() => {
+          alert("Contenu sauvegardé avec succès !");
+          document.getElementById('contentTitle').value = '';
+          document.getElementById('contentImage').value = '';
+          document.getElementById('contentVideoUrl').value = '';
+        })
+        .catch((error) => {
+          alert("Erreur lors de la sauvegarde.");
+        });
+      });
+    }
+
+    // Affichage en direct
+    db.collection("contents").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
+      const photoGrid = document.querySelector('.photo-grid');
+      const videoContainer = document.getElementById('videoContainer');
+      
+      if (photoGrid) photoGrid.innerHTML = '';
+      if (videoContainer) videoContainer.innerHTML = '';
+
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+
+        if (data.type === 'video' && videoContainer) {
+          const videoCard = document.createElement('div');
+          videoCard.className = 'video-card';
+
+          const videoElement = data.videoUrl 
+            ? `<video controls poster="${data.imgUrl}" style="width:100%; max-height:450px; border-radius:12px;">
+                 <source src="${data.videoUrl}" type="video/mp4">
+               </video>`
+            : `<div class="thumbnail-container">
+                 <img src="${data.imgUrl}" alt="${data.title}" style="width:100%; border-radius:12px;">
+               </div>`;
+
+          videoCard.innerHTML = `
+            ${videoElement}
+            <div class="info">
+              <h3>${data.title}</h3>
+              <p>${data.videoUrl ? 'Prêt à regarder !' : 'Sortie prévue à ' + (data.time || '16h00')}</p>
+            </div>
+          `;
+          videoContainer.appendChild(videoCard);
+        }
+
+        if (data.type === 'photo' && photoGrid) {
+          const photoCard = document.createElement('div');
+          photoCard.className = 'photo-card';
+          photoCard.innerHTML = `
+            <img src="${data.imgUrl}" alt="${data.title}">
+            <p>${data.title}</p>
+          `;
+          photoGrid.appendChild(photoCard);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
