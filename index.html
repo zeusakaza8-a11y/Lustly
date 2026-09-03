@@ -134,6 +134,7 @@
 
   <script>
     function openImageModal(url) {
+      if(!url) return;
       const modal = document.getElementById('imageModal');
       const modalImg = document.getElementById('modalImg');
       modalImg.src = url;
