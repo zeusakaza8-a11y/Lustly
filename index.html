@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Administration - lustly-only</title>
+  <title>lustly-only</title>
   
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
@@ -17,18 +18,28 @@
       padding: 20px;
     }
 
-    .admin-panel {
-      background: #1e1e1e;
-      padding: 20px;
-      border-radius: 12px;
+    .site-header {
+      text-align: center;
+      padding: 20px 0;
       margin-bottom: 25px;
-      border: 1px solid #2a2a2a;
+      border-bottom: 2px solid #2a2a2a;
     }
 
-    .admin-panel input, .admin-panel select {
+    .site-title {
+      font-size: 2.8rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin: 0;
+      background: linear-gradient(135deg, #3b82f6, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .search-container input {
       width: 100%;
       padding: 12px;
-      margin-bottom: 12px;
+      margin-bottom: 20px;
       border-radius: 8px;
       border: 1px solid #333;
       background: #222;
@@ -36,76 +47,103 @@
       box-sizing: border-box;
     }
 
-    .btn-submit {
-      background: #3b82f6;
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 8px;
-      width: 100%;
-      font-weight: bold;
-      cursor: pointer;
-      font-size: 1rem;
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 15px;
     }
 
-    .delete-btn {
-      background: #ef4444;
-      color: white;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    .content-item {
+    .photo-card {
       background: #1e1e1e;
-      padding: 12px;
-      border-radius: 8px;
-      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 10px;
       display: flex;
+      flex-direction: column;
       justify-content: space-between;
+    }
+
+    .photo-card img {
+      width: 100%;
+      height: 180px;
+      border-radius: 8px;
+      object-fit: cover;
+      background-color: #000;
+      cursor: pointer;
+    }
+
+    .video-card {
+      background: #1e1e1e;
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      border: 1px solid #2a2a2a;
+    }
+
+    .timer-badge {
+      background: #3b82f6;
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-top: 8px;
+      font-weight: bold;
+      font-size: 0.9em;
+    }
+
+    .image-modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.9);
+      justify-content: center;
       align-items: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .image-modal img {
+      max-width: 90%;
+      max-height: 80vh;
+      border-radius: 10px;
+      object-fit: contain;
     }
   </style>
 </head>
 <body>
 
-  <h1>Espace d'Administration Privé</h1>
+  <header class="site-header">
+    <h1 class="site-title">lustly-only</h1>
+  </header>
 
-  <div class="admin-panel">
-    <h2>Ajouter un nouveau contenu</h2>
-    
-    <label>Type de contenu :</label>
-    <select id="contentType">
-      <option value="video">Vidéo</option>
-      <option value="photo">Photo</option>
-    </select>
-
-    <label>Titre :</label>
-    <input type="text" id="contentTitle" placeholder="Ex: Mon nouveau contenu">
-
-    <label>Lien de la photo (URL de l'image) :</label>
-    <input type="text" id="contentImage" placeholder="Ex: https://i.ibb.co/exemple.jpg">
-
-    <div id="videoUrlGroup">
-      <label>Lien de la vidéo (URL MP4) :</label>
-      <input type="text" id="contentVideoUrl" placeholder="Ex: https://exemple.com/video.mp4">
-    </div>
-
-    <div id="scheduleGroup">
-      <label>Heure de publication (ex: 16:00) :</label>
-      <input type="time" id="contentTime">
-    </div>
-
-    <button id="addBtn" class="btn-submit">Publier sur le site</button>
+  <div class="search-container">
+    <input type="text" id="searchInput" placeholder="Rechercher une vidéo ou photo...">
   </div>
 
-  <h2>Gestion des contenus publiés</h2>
-  <div id="adminContentList"></div>
+  <div id="videoContainer"></div>
+
+  <h2 class="section-title">Galerie Photos</h2>
+  <div class="photo-grid"></div>
+
+  <div id="imageModal" class="image-modal" onclick="closeImageModal()">
+    <img id="modalImg" src="" alt="Vue agrandie">
+  </div>
 
   <script>
-    // Configuration Firebase
+    function openImageModal(url) {
+      const modal = document.getElementById('imageModal');
+      const modalImg = document.getElementById('modalImg');
+      modalImg.src = url;
+      modal.style.display = 'flex';
+    }
+
+    function closeImageModal() {
+      document.getElementById('imageModal').style.display = 'none';
+    }
+
     const firebaseConfig = {
       apiKey: "AIzaSyD9lr-s-GjjJJOYwucEdX12RvOi0sMuNHY",
       authDomain: "lustly-80821.firebaseapp.com",
@@ -118,74 +156,107 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    const contentType = document.getElementById('contentType');
-    const scheduleGroup = document.getElementById('scheduleGroup');
-    const videoUrlGroup = document.getElementById('videoUrlGroup');
-
-    contentType.addEventListener('change', () => {
-      const isPhoto = contentType.value === 'photo';
-      scheduleGroup.style.display = isPhoto ? 'none' : 'block';
-      videoUrlGroup.style.display = isPhoto ? 'none' : 'block';
-    });
-
-    const addBtn = document.getElementById('addBtn');
-    addBtn.addEventListener('click', () => {
-      const type = contentType.value;
-      const title = document.getElementById('contentTitle').value || 'Sans titre';
-      const imgUrl = document.getElementById('contentImage').value;
-      const videoUrl = document.getElementById('contentVideoUrl').value;
-      const time = document.getElementById('contentTime').value;
-
-      if (!imgUrl) {
-        alert("Veuillez coller le lien d'une image.");
-        return;
-      }
-
-      db.collection("contents").add({
-        type: type,
-        title: title,
-        imgUrl: imgUrl,
-        videoUrl: videoUrl || null,
-        time: time || null,
-        createdAt: new Date()
-      })
-      .then(() => {
-        alert("Contenu publié avec succès !");
-        document.getElementById('contentTitle').value = '';
-        document.getElementById('contentImage').value = '';
-        document.getElementById('contentVideoUrl').value = '';
-      })
-      .catch((error) => {
-        alert("Erreur lors de la sauvegarde.");
+    function filterContent() {
+      const filter = document.getElementById('searchInput').value.toLowerCase();
+      
+      document.querySelectorAll('.video-card').forEach(card => {
+        const titleEl = card.querySelector('h3');
+        const title = titleEl ? titleEl.textContent.toLowerCase() : '';
+        card.style.display = title.includes(filter) ? "" : "none";
       });
-    });
 
-    function deleteContent(id) {
-      if (confirm("Veux-tu vraiment supprimer ce contenu ?")) {
-        db.collection("contents").doc(id).delete()
-          .then(() => alert("Contenu supprimé !"))
-          .catch((err) => alert("Erreur : " + err));
-      }
+      document.querySelectorAll('.photo-card').forEach(card => {
+        const textEl = card.querySelector('p');
+        const text = textEl ? textEl.textContent.toLowerCase() : '';
+        card.style.display = text.includes(filter) ? "" : "none";
+      });
+    }
+
+    document.getElementById('searchInput').addEventListener('input', filterContent);
+
+    function startCountdowns() {
+      document.querySelectorAll('.timer-badge').forEach(timerElement => {
+        const targetTimeStr = timerElement.getAttribute('data-time');
+        if (!targetTimeStr) return;
+
+        const [targetHours, targetMinutes] = targetTimeStr.split(':').map(Number);
+        
+        function update() {
+          const now = new Date();
+          const target = new Date();
+          target.setHours(targetHours, targetMinutes, 0, 0);
+
+          if (now > target) {
+            target.setDate(target.getDate() + 1);
+          }
+
+          const diff = target - now;
+          const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+          const minutes = Math.floor((diff / (1000 * 60)) % 60);
+          const seconds = Math.floor((diff / 1000) % 60);
+
+          const h = hours < 10 ? "0" + hours : hours;
+          const m = minutes < 10 ? "0" + minutes : minutes;
+          const s = seconds < 10 ? "0" + seconds : seconds;
+
+          timerElement.textContent = `Disponible dans : ${h}h ${m}m ${s}s`;
+        }
+
+        update();
+        setInterval(update, 1000);
+      });
     }
 
     db.collection("contents").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
-      const listContainer = document.getElementById('adminContentList');
-      listContainer.innerHTML = '';
+      const photoGrid = document.querySelector('.photo-grid');
+      const videoContainer = document.getElementById('videoContainer');
+      
+      if (photoGrid) photoGrid.innerHTML = '';
+      if (videoContainer) videoContainer.innerHTML = '';
 
       snapshot.forEach((doc) => {
         const data = doc.data();
-        const docId = doc.id;
 
-        const item = document.createElement('div');
-        item.className = 'content-item';
-        item.innerHTML = `
-          <div>
-            <strong>[${data.type.toUpperCase()}]</strong> ${data.title}
-          </div>
-          <button class="delete-btn" onclick="deleteContent('${docId}')">Supprimer</button>
-        `;
-        listContainer.appendChild(item);
+        if (data.type === 'video' && videoContainer) {
+          const videoCard = document.createElement('div');
+          videoCard.className = 'video-card';
+
+          const videoElement = data.videoUrl 
+            ? `<video controls poster="${data.imgUrl}" style="width:100%; max-height:450px; border-radius:12px; background:#000;">
+                 <source src="${data.videoUrl}" type="video/mp4">
+               </video>`
+            : `<div class="thumbnail-container">
+                 <img src="${data.imgUrl}" alt="${data.title}" style="width:100%; border-radius:12px; background:#000;" onclick="openImageModal('${data.imgUrl}')">
+               </div>`;
+
+          const timerHtml = data.time 
+            ? `<div class="timer-badge" data-time="${data.time}">Calcul du compte à rebours...</div>` 
+            : '';
+
+          videoCard.innerHTML = `
+            ${videoElement}
+            <div class="info">
+              <h3>${data.title}</h3>
+              <p>${data.videoUrl ? 'Prêt à regarder !' : 'Sortie prévue à ' + (data.time || '16h00')}</p>
+              ${timerHtml}
+            </div>
+          `;
+          videoContainer.appendChild(videoCard);
+        }
+
+        if (data.type === 'photo' && photoGrid) {
+          const photoCard = document.createElement('div');
+          photoCard.className = 'photo-card';
+          photoCard.innerHTML = `
+            <img src="${data.imgUrl}" alt="${data.title}" onclick="openImageModal('${data.imgUrl}')">
+            <p>${data.title}</p>
+          `;
+          photoGrid.appendChild(photoCard);
+        }
       });
+
+      startCountdowns();
+      filterContent();
     });
   </script>
 </body>
